@@ -1,0 +1,20 @@
+# EFLC address, IV address, how it was found. Read by tools/match_refine.py, wins over everything.
+# Left out on purpose (stay unmapped, so their hooks never run): 0x821B5C78 (loading label, no
+# reliable match), 0x8247BD40 (TV script hook, two equal candidates), 0x82278B70/0x82278C68
+# (EFLC's folded thunk in rexglue_glue/memory.cpp), 0x82CC7BD0 (frontend widget table, only indexed)
+# and the probes of runtime/os/probes.cpp.
+0x8200078C	0x82000768	import VdGlobalDevice in xexinfo
+0x820009FC	0x820009DC	"720" right before "1280"
+0x820212E4	0x82020094	vtable loaded at the same place of the matched constructor
+0x82143DF8	0x821235B8	3 call sites vote
+0x821440F0	0x821238A0	return of the same bl (0x82143CB8 = 0x82123478, both 0x140 before)
+0x821C49D0	0x82199658	26 call sites vote
+0x82268088	0x82253358	body 0.92
+0x8236C200	0x823E0608	body 0.91
+0x828BEBB8	0x828507F8	call site vote
+0x828BEC48	0x8285086C	return of the present call (0x82A463C8 = 0x829D5388)
+0x82B06EC8	0x82A7FB90	same lfs in the matched sub_82843370
+0x82CC9F55	0x82B9F8DD	same stb in the matched sub_825719E8
+0x82D4FC10	0x82CC1118	28 of 30 references, immediates masked
+0x8227AF38	0x822B00A0	sun shadow culling planes: same body, matched in eflc_to_iv_functions.tsv
+0x8227D298	0x822B2370	sun shadow camera: same body, matched in eflc_to_iv_functions.tsv

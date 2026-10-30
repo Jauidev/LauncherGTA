@@ -1,0 +1,376 @@
+diff --git a/XenonAnalyse/function.cpp b/XenonAnalyse/function.cpp
+index 34add40..31ab352 100644
+--- a/XenonAnalyse/function.cpp
++++ b/XenonAnalyse/function.cpp
+@@ -125,7 +125,9 @@ Function Function::Analyze(const void* code, size_t size, size_t base)
+                 blockStack.emplace_back(lBlock);
+             }
+ 
+-            size_t rBlock = fn.SearchBlock(base + rBase);
++            // gta4port: a conditional branch before base leaves the function (outlined chunk of a
++            // previous function); creating a block for it underflowed rBase and looped forever.
++            size_t rBlock = branchDest < base ? 0 : fn.SearchBlock(base + rBase);
+             if (rBlock == -1)
+             {
+                 blocks.emplace_back(branchDest - base, 0);
+diff --git a/XenonRecomp/recompiler.cpp b/XenonRecomp/recompiler.cpp
+index fa91527..0b3760c 100644
+--- a/XenonRecomp/recompiler.cpp
++++ b/XenonRecomp/recompiler.cpp
+@@ -213,6 +213,7 @@ void Recompiler::Analyse()
+                 if (address >= section.base && address < section.base + section.size && image.symbols.find(address) == image.symbols.end())
+                 {
+                     auto data = section.data + address - section.base;
++                    if (getenv("GTA4PORT_TRACE")) fprintf(stderr, "bl-target %zX\n", address);
+                     auto& fn = functions.emplace_back(Function::Analyze(data, section.base + section.size - address, address));
+                     image.symbols.emplace(fmt::format("sub_{:X}", fn.base), fn.base, fn.size, Symbol_Function);
+                 }
+@@ -242,7 +243,17 @@ void Recompiler::Analyse()
+             }
+             else
+             {
+-                auto& fn = functions.emplace_back(Function::Analyze(data, dataEnd - data, base));
++                if (getenv("GTA4PORT_TRACE")) fprintf(stderr, "gap %zX\n", base);
++                auto fnNew = Function::Analyze(data, dataEnd - data, base);
++                if (fnNew.size == 0)
++                {
++                    // gta4port: a zero-size result would loop forever here; report it and step over the word.
++                    fmt::println("gta4port: zero-size function at {:X} (word {:08X})", base, ByteSwap(*(uint32_t*)data));
++                    base += 4;
++                    data += 4;
++                    continue;
++                }
++                auto& fn = functions.emplace_back(fnNew);
+                 image.symbols.emplace(fmt::format("sub_{:X}", fn.base), fn.base, fn.size, Symbol_Function);
+ 
+                 base += fn.size;
+@@ -609,7 +620,10 @@ bool Recompiler::Recompile(
+     case PPC_INST_BCTR:
+         if (switchTable != config.switchTables.end())
+         {
+-            println("\tswitch ({}.u64) {{", r(switchTable->second.r));
++            // gta4port: the guest indexes the table with the low 32 bits only
++            // (cmplwi bound check, rlwinm scale); the upper half can be dirty
++            // (e.g. after subfe/addi), and the default is unreachable.
++            println("\tswitch ({}.u32) {{", r(switchTable->second.r));
+ 
+             for (size_t i = 0; i < switchTable->second.labels.size(); i++)
+             {
+@@ -712,7 +726,17 @@ bool Recompiler::Recompile(
+         break;
+ 
+     case PPC_INST_BLRL:
+-        println("__builtin_debugtrap();");
++        // gta4port: indirect call through LR (mtlr rX; blrl). Needs the LR value, so not with skip_lr.
++        if (config.skipLr)
++        {
++            fmt::println("blrl at {:X} cannot be recompiled with skip_lr", base);
++            println("__builtin_debugtrap();");
++            break;
++        }
++        println("\t{}.u64 = ctx.lr;", temp());
++        println("\tctx.lr = 0x{:X};", base + 4);
++        println("\tPPC_CALL_INDIRECT_FUNC({}.u32);", temp());
++        csrState = CSRState::Unknown; // the call could change it
+         break;
+ 
+     case PPC_INST_BLT:
+@@ -804,6 +828,10 @@ bool Recompiler::Recompile(
+         // no op
+         break;
+ 
++    case PPC_INST_DCBST: // gta4port
++        // no op
++        break;
++
+     case PPC_INST_DCBT:
+         // no op
+         break;
+@@ -849,7 +877,10 @@ bool Recompiler::Recompile(
+         break;
+ 
+     case PPC_INST_EIEIO:
+-        // no op
++        // gta4port: orders stores (the game puts it before lock releases). A no-op is only right
++        // on x86, which never reorders stores; ARM64 does (this emits dmb ish there, nothing on
++        // x86 beyond a compiler barrier).
++        println("\t__atomic_thread_fence(__ATOMIC_RELEASE);");
+         break;
+ 
+     case PPC_INST_EXTSB:
+@@ -985,6 +1016,11 @@ bool Recompiler::Recompile(
+         println("\t{}.f64 = float(1.0 / {}.f64);", f(insn.operands[0]), f(insn.operands[1]));
+         break;
+ 
++    case PPC_INST_FRSQRTE: // gta4port
++        printSetFlushMode(false);
++        println("\t{}.f64 = 1.0 / sqrt({}.f64);", f(insn.operands[0]), f(insn.operands[1]));
++        break;
++
+     case PPC_INST_FRSP:
+         printSetFlushMode(false);
+         println("\t{}.f64 = double(float({}.f64));", f(insn.operands[0]), f(insn.operands[1]));
+@@ -1209,7 +1245,11 @@ bool Recompiler::Recompile(
+         break;
+ 
+     case PPC_INST_LWSYNC:
+-        // no op
++        // gta4port: lwsync orders every pair of accesses but store-then-load: acquire after a
++        // lock is taken, release before it is dropped (`lwsync; stw 0`). x86 gives that for free;
++        // ARM64 reorders loads and stores, so without the barrier a spinlock's release could
++        // become visible before the writes it protects (dmb ish on ARM64, nothing on x86).
++        println("\t__atomic_thread_fence(__ATOMIC_ACQ_REL);");
+         break;
+ 
+     case PPC_INST_LWZ:
+@@ -1260,7 +1300,8 @@ bool Recompiler::Recompile(
+         break;
+ 
+     case PPC_INST_MFTB:
+-        println("\t{}.u64 = __rdtsc();", r(insn.operands[0]));
++        // gta4port: PPCReadTimebase (ppc_context.h) ticks at the console timebase.
++        println("\t{}.u64 = PPCReadTimebase();", r(insn.operands[0]));
+         break;
+ 
+     case PPC_INST_MR:
+@@ -1311,6 +1352,12 @@ bool Recompiler::Recompile(
+             println("\t{}.compare<int32_t>({}.s32, 0, {});", cr(0), r(insn.operands[0]), xer());
+         break;
+ 
++    case PPC_INST_MULHDU: // gta4port
++        println("\t{}.u64 = uint64_t((unsigned __int128)({}.u64) * {}.u64 >> 64);", r(insn.operands[0]), r(insn.operands[1]), r(insn.operands[2]));
++        if (strchr(insn.opcode->name, '.'))
++            println("\t{}.compare<int64_t>({}.s64, 0, {});", cr(0), r(insn.operands[0]), xer());
++        break;
++
+     case PPC_INST_MULLD:
+         println("\t{}.s64 = {}.s64 * {}.s64;", r(insn.operands[0]), r(insn.operands[1]), r(insn.operands[2]));
+         break;
+@@ -1711,7 +1758,8 @@ bool Recompiler::Recompile(
+         break;
+ 
+     case PPC_INST_SYNC:
+-        // no op
++        // gta4port: full barrier, store-then-load included (mfence on x86, dmb ish on ARM64).
++        println("\t__atomic_thread_fence(__ATOMIC_SEQ_CST);");
+         break;
+ 
+     case PPC_INST_TDLGEI:
+@@ -1769,6 +1817,7 @@ bool Recompiler::Recompile(
+         println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_and_si128(simde_mm_load_si128((simde__m128i*){}.u8), simde_mm_load_si128((simde__m128i*){}.u8)));", v(insn.operands[0]), v(insn.operands[1]), v(insn.operands[2]));
+         break;
+ 
++    case PPC_INST_VANDC: // gta4port
+     case PPC_INST_VANDC128:
+         println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_andnot_si128(simde_mm_load_si128((simde__m128i*){}.u8), simde_mm_load_si128((simde__m128i*){}.u8)));", v(insn.operands[0]), v(insn.operands[2]), v(insn.operands[1]));
+         break;
+@@ -1795,6 +1844,18 @@ bool Recompiler::Recompile(
+             println("simde_mm_load_ps({}.f32)));", v(insn.operands[1]));
+         break;
+ 
++    case PPC_INST_VCTUXS: // gta4port
++    case PPC_INST_VCFPUXWS128:
++        // unsigned saturating convert of vB * 2^uimm; NaN and negatives give 0 (VSCR[SAT] not tracked)
++        printSetFlushMode(true);
++        for (size_t i = 0; i < 4; i++)
++        {
++            println("\t{}.f32 = {}.f32[{}] * {}.0f;", temp(), v(insn.operands[1]), i, 1u << insn.operands[2]);
++            println("\t{}.u32[{}] = !({}.f32 > 0.0f) ? 0 : ({}.f32 >= 4294967296.0f ? 0xFFFFFFFF : uint32_t({}.f32));",
++                v(insn.operands[0]), i, temp(), temp(), temp());
++        }
++        break;
++
+     case PPC_INST_VCFSX:
+     case PPC_INST_VCSXWFP128:
+     {
+@@ -1831,7 +1892,23 @@ bool Recompiler::Recompile(
+ 
+     case PPC_INST_VCMPBFP:
+     case PPC_INST_VCMPBFP128:
+-        println("\t__builtin_debugtrap();");
++        // gta4port: bounds compare. Bit 31 = !(a <= b), bit 30 = !(a >= -b), so NaN sets both.
++        printSetFlushMode(true);
++        for (size_t i = 0; i < 4; i++)
++        {
++            println("\t{}.u32 = ({}.f32[{}] <= {}.f32[{}] ? 0 : 0x80000000) | ({}.f32[{}] >= -{}.f32[{}] ? 0 : 0x40000000);",
++                temp(), v(insn.operands[1]), i, v(insn.operands[2]), i, v(insn.operands[1]), i, v(insn.operands[2]), i);
++            println("\t{}.u32[{}] = {}.u32;", vTemp(), i, temp());
++        }
++        println("\t{} = {};", v(insn.operands[0]), vTemp());
++        if (strchr(insn.opcode->name, '.'))
++        {
++            // CR6 = 0 | 0 | all-in-bounds | 0
++            println("\t{}.lt = 0;", cr(6));
++            println("\t{}.gt = 0;", cr(6));
++            println("\t{}.eq = ({}.u32[0] | {}.u32[1] | {}.u32[2] | {}.u32[3]) == 0;", cr(6), vTemp(), vTemp(), vTemp(), vTemp());
++            println("\t{}.so = 0;", cr(6));
++        }
+         break;
+ 
+     case PPC_INST_VCMPEQFP:
+@@ -2014,6 +2091,51 @@ bool Recompiler::Recompile(
+             println("\t{}.u32[{}] = {}.u32;", v(insn.operands[0]), insn.operands[4], temp());
+             break;
+ 
++        case 2: // gta4port: UINT_2101010 (xyz signed 10-bit, w unsigned 2-bit), as Xenia's PACK
++        {
++            if (insn.operands[3] != 1)
++            {
++                fmt::println("Unexpected 2101010 pack instruction at {:X}", base);
++                println("\t__builtin_debugtrap();");
++                break;
++            }
++
++            // storage lane 3 - i holds PPC element i (x, y, z, w)
++            constexpr uint32_t mins[] = { 0x403FFE01, 0x403FFE01, 0x403FFE01, 0x40400000 };
++            constexpr uint32_t maxs[] = { 0x404001FF, 0x404001FF, 0x404001FF, 0x40400003 };
++            constexpr uint32_t masks[] = { 0x3FF, 0x3FF, 0x3FF, 0x3 };
++            println("\t{}.u64 = 0;", temp());
++            for (size_t i = 0; i < 4; i++)
++            {
++                println("\t{}.u32[0] = 0x{:X};", vTemp(), mins[i]);
++                println("\t{}.u32[1] = 0x{:X};", vTemp(), maxs[i]);
++                println("\t{}.f32[2] = {}.f32[{}];", vTemp(), v(insn.operands[1]), 3 - i);
++                println("\t{0}.f32[2] = !({0}.f32[2] > {0}.f32[0]) ? {0}.f32[0] : ({0}.f32[2] < {0}.f32[1] ? {0}.f32[2] : {0}.f32[1]);", vTemp());
++                println("\t{}.u32 |= ({}.u32[2] & 0x{:X}) << {};", temp(), vTemp(), masks[i], i * 10);
++            }
++            println("\t{}.u32[{}] = {}.u32;", v(insn.operands[0]), insn.operands[4], temp());
++            break;
++        }
++
++        case 3: // gta4port: FLOAT16_2, x in the high half, same half conversion as float16_4 below
++            // writes go straight into vD, so vD == vB would clobber the second source lane
++            if (insn.operands[3] != 1 || insn.operands[0] == insn.operands[1])
++            {
++                fmt::println("Unexpected float16_2 pack instruction at {:X}", base);
++                println("\t__builtin_debugtrap();");
++                break;
++            }
++
++            for (size_t i = 2; i < 4; i++)
++            {
++                println("\t{}.u32 = ({}.u32[{}]&0x7FFFFFFF);", temp(), v(insn.operands[1]), i);
++                println("\t{0}.u8[0] = ({1}.f32 != {1}.f32) || ({1}.f32 > 65504.0f) ? 0xFF : (({2}.u32[{3}]&0x7f800000)>>23);", vTemp(), temp(), v(insn.operands[1]), i);
++                println("\t{}.u16 = {}.u8[0] != 0xFF ? (({}.u32[{}]&0x7FE000)>>13) : 0x0;", temp(), vTemp(), v(insn.operands[1]), i);
++                println("\t{0}.u16[{1}] = {2}.u8[0] != 0xFF ? ({2}.u8[0] > 0x70 ? ((({2}.u8[0]-0x70)<<10)+{3}.u16) : (0x71-{2}.u8[0] > 31 ? 0x0 : ((0x400+{3}.u16)>>(0x71-{2}.u8[0])))) : 0x7FFF;", v(insn.operands[0]), (i - 2) + (2 * insn.operands[4]), vTemp(), temp());
++                println("\t{}.u16[{}] |= (({}.u32[{}]&0x80000000)>>16);", v(insn.operands[0]), (i - 2) + (2 * insn.operands[4]), v(insn.operands[1]), i);
++            }
++            break;
++
+         case 5: // float16_4
+             if (insn.operands[3] != 2 || insn.operands[4] > 2)
+                 fmt::println("Unexpected float16_4 pack instruction at {:X}", base);
+@@ -2042,6 +2164,18 @@ bool Recompiler::Recompile(
+         }
+         break;
+ 
++    case PPC_INST_VPKSWSS: // gta4port
++    case PPC_INST_VPKSWSS128:
++        // operands swapped like vpkshus because of the full vector reversal
++        println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_packs_epi32(simde_mm_load_si128((simde__m128i*){}.s32), simde_mm_load_si128((simde__m128i*){}.s32)));", v(insn.operands[0]), v(insn.operands[2]), v(insn.operands[1]));
++        break;
++
++    case PPC_INST_VPKUWUS: // gta4port
++    case PPC_INST_VPKUWUS128:
++        // clamp as unsigned first so packus (signed input) sees values in 0..0xFFFF
++        println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_packus_epi32(simde_mm_min_epu32(simde_mm_load_si128((simde__m128i*){}.u32), simde_mm_set1_epi32(0xFFFF)), simde_mm_min_epu32(simde_mm_load_si128((simde__m128i*){}.u32), simde_mm_set1_epi32(0xFFFF))));", v(insn.operands[0]), v(insn.operands[2]), v(insn.operands[1]));
++        break;
++
+     case PPC_INST_VPKSHUS:
+     case PPC_INST_VPKSHUS128:
+         println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_packus_epi16(simde_mm_load_si128((simde__m128i*){}.s16), simde_mm_load_si128((simde__m128i*){}.s16)));", v(insn.operands[0]), v(insn.operands[2]), v(insn.operands[1]));
+@@ -2091,6 +2225,10 @@ bool Recompiler::Recompile(
+         println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_or_si128(simde_mm_andnot_si128(simde_mm_load_si128((simde__m128i*){}.u8), simde_mm_load_si128((simde__m128i*){}.u8)), simde_mm_and_si128(simde_mm_load_si128((simde__m128i*){}.u8), simde_mm_load_si128((simde__m128i*){}.u8))));", v(insn.operands[0]), v(insn.operands[3]), v(insn.operands[1]), v(insn.operands[3]), v(insn.operands[2]));
+         break;
+ 
++    case PPC_INST_VSEL128: // gta4port: vD is also the select mask
++        println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_or_si128(simde_mm_andnot_si128(simde_mm_load_si128((simde__m128i*){}.u8), simde_mm_load_si128((simde__m128i*){}.u8)), simde_mm_and_si128(simde_mm_load_si128((simde__m128i*){}.u8), simde_mm_load_si128((simde__m128i*){}.u8))));", v(insn.operands[0]), v(insn.operands[0]), v(insn.operands[1]), v(insn.operands[0]), v(insn.operands[2]));
++        break;
++
+     case PPC_INST_VSLB:
+         // TODO: vectorize
+         for (size_t i = 0; i < 16; i++)
+@@ -2130,6 +2268,16 @@ bool Recompiler::Recompile(
+         println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_set1_epi8(char(0x{:X})));", v(insn.operands[0]), insn.operands[1]);
+         break;
+ 
++    case PPC_INST_VSPLTISH: // gta4port
++    {
++        // 5-bit signed immediate, sign-extended here whatever form the disassembler gave
++        int16_t simm = int16_t(insn.operands[1] & 0x1F);
++        if (simm & 0x10)
++            simm |= int16_t(0xFFE0);
++        println("\tsimde_mm_store_si128((simde__m128i*){}.u16, simde_mm_set1_epi16(short({})));", v(insn.operands[0]), simm);
++        break;
++    }
++
+     case PPC_INST_VSPLTISW:
+     case PPC_INST_VSPLTISW128:
+         println("\tsimde_mm_store_si128((simde__m128i*){}.u32, simde_mm_set1_epi32(int(0x{:X})));", v(insn.operands[0]), insn.operands[1]);
+@@ -2147,6 +2295,7 @@ bool Recompiler::Recompile(
+ 
+     case PPC_INST_VSR:
+         println("\tsimde_mm_store_si128((simde__m128i*){}.u8, simde_mm_vsr(simde_mm_load_si128((simde__m128i*){}.u8), simde_mm_load_si128((simde__m128i*){}.u8)));", v(insn.operands[0]), v(insn.operands[1]), v(insn.operands[2]));
++        break; // gta4port: was falling through into vsubuhm and overwriting the result
+         break;
+ 
+     case PPC_INST_VSRAW:
+@@ -2212,6 +2361,23 @@ bool Recompiler::Recompile(
+             println("\t{} = {};", v(insn.operands[0]), vTemp());
+             break;
+ 
++        case 2: // gta4port: UINT_2101010 from PPC word 3 (storage u32[0]), as Xenia's UNPACK
++        {
++            // x, y, z: sign-extended 10-bit + 3.0f bits; w: 2-bit + 1.0f bits; 0x403FFE00 becomes a QNaN
++            constexpr uint32_t shifts[] = { 0, 10, 20, 30 };
++            for (size_t i = 0; i < 4; i++)
++            {
++                println("\t{}.s32 = int32_t(({}.u32[0] >> {}) << 22) >> 22;", temp(), v(insn.operands[1]), shifts[i]);
++                if (i == 3)
++                    println("\t{}.u32 = ({}.u32 & 0x3) + 0x3F800000;", temp(), temp());
++                else
++                    println("\t{}.u32 += 0x40400000;", temp());
++                println("\t{}.u32[{}] = {}.u32 == 0x403FFE00 ? 0x7FC00000 : {}.u32;", vTemp(), 3 - i, temp(), temp());
++            }
++            println("\t{} = {};", v(insn.operands[0]), vTemp());
++            break;
++        }
++
+         default:
+             println("\t__builtin_debugtrap();");
+             break;
+diff --git a/XenonUtils/ppc_context.h b/XenonUtils/ppc_context.h
+index 31a86cd..21d4961 100644
+--- a/XenonUtils/ppc_context.h
++++ b/XenonUtils/ppc_context.h
+@@ -5,6 +5,7 @@
+ #error "ppc_config.h must be included before ppc_context.h"
+ #endif
+ 
++#include <chrono>
+ #include <climits>
+ #include <cmath>
+ #include <csetjmp>
+@@ -700,4 +701,22 @@ inline uint64_t __rdtsc()
+ #   error "Missing implementation for __rdtsc()"
+ #endif
+ 
++// gta4port: mftb. Games divide timebase deltas by KeQueryPerformanceFrequency, which reports the
++// console's 49.875 MHz; the raw TSC (GHz) or cntvct (tens of MHz) made every game timer run at the
++// wrong speed. Whole seconds and the remainder are scaled apart so nothing overflows (and no
++// 128-bit division, which clang-cl would leave to a helper the MSVC linker lacks).
++inline uint64_t PPCReadTimebase()
++{
++    constexpr uint64_t TIMEBASE_FREQUENCY = 49875000;
++#if defined(__aarch64__) || defined(_M_ARM64)
++    uint64_t frequency;
++    asm volatile("mrs %0, cntfrq_el0" : "=r"(frequency));
++    const uint64_t ticks = __rdtsc();
++#else
++    constexpr uint64_t frequency = 1000000000;
++    const uint64_t ticks = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
++#endif
++    return ticks / frequency * TIMEBASE_FREQUENCY + ticks % frequency * TIMEBASE_FREQUENCY / frequency;
++}
++
+ #endif

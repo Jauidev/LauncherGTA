@@ -1,0 +1,22 @@
+--- a/gta4_native_hooks.cpp
++++ b/gta4_native_hooks.cpp
+@@ -4800,6 +4800,10 @@
+   if (render_context) SubmitEnvironmentalData(base, LoadU32(base, render_context + 24), 0);
+ }
+ 
++namespace gta4native {
++void LimitViewDistance(uint8_t* base, uint32_t cycle);
++}
++
+ // sub_822DEB10 interpolates the base cycle; sub_822DF0C8 then applies the
+ // title's per-view far-clip modifiers. FusionFix's default baseline is 4500.
+ PPC_FUNC(sub_822DEB10) {
+@@ -4832,6 +4836,8 @@
+   g_fusion_cycle_capture = &capture;
+   __imp__sub_822DF0C8(ctx, base);
+   g_fusion_cycle_capture = previous;
++  // gta4port: gta4_fog_distance caps the far clip and brings the fog in (rexglue_glue/fog.cpp).
++  ::gta4native::LimitViewDistance(base, capture.destination);
+   if (capture.destination >= kCloudDoubleBufferBase) {
+     const uint32_t relative = capture.destination - kCloudDoubleBufferBase;
+     const uint32_t index = relative / kCloudDoubleBufferStride;

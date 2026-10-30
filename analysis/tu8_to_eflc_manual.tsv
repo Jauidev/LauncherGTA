@@ -1,0 +1,6 @@
+# Manual TU8 -> EFLC translations (tools/translate_addresses.py reads them after the generated table).
+# TU8	EFLC	method	name
+0x82D475D0	0x82D4FC10	manual: lwz r3 after sub_822DDB98 call in sub_82142FC0 (TU8 sub_822CB410 in sub_82142F90)	
+0x82B99F84	0x82BDCA14	manual, unverified: font2 owner, same +0x42A90 delta as font1/font3 owners	
+0x82044D4C	0x82044D5C	manual: G-buffer vtable stored by sub_8267D210 (TU8 sub_8267CEC0)	
+0x82013144	0x8201312C	manual: DrawScene vtable stored by sub_8235D970 (TU8 sub_8235DE18)	

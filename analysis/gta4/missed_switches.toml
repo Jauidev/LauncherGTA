@@ -1,0 +1,77 @@
+
+# gta4port: missed by XenonAnalyse (tools/find_switches.py)
+[[switch]]
+base = 0x82237104
+r = 11
+default = 0x8223712C
+labels = [
+    0x8223712C,
+    0x82237198,
+    0x82237210,
+    0x8223728C,
+]
+
+# gta4port: missed by XenonAnalyse (tools/find_switches.py)
+[[switch]]
+base = 0x8263CFF0
+r = 11
+default = 0x8263D0E8
+labels = [
+    0x8263D0E8,
+    0x8263D020,
+    0x8263D03C,
+    0x8263D058,
+    0x8263D0A8,
+    0x8263D0C0,
+]
+
+# gta4port: missed by XenonAnalyse (tools/find_switches.py)
+[[switch]]
+base = 0x82803F20
+r = 10
+default = 0x82803FAC
+labels = [
+    0x82803FAC,
+    0x8280411C,
+    0x828041D4,
+    0x82804268,
+    0x828042F8,
+    0x8280439C,
+    0x8280445C,
+    0x8280451C,
+    0x828045DC,
+    0x82804668,
+    0x828046D0,
+    0x828046E0,
+    0x828046EC,
+    0x828047EC,
+    0x8280485C,
+    0x828048B8,
+    0x82804940,
+    0x82804A64,
+    0x82804DA4,
+    0x82804FBC,
+    0x82805024,
+    0x828051B0,
+    0x82805238,
+    0x828052E8,
+    0x82805308,
+    0x82805384,
+    0x8280542C,
+    0x82805434,
+    0x8280556C,
+]
+
+# gta4port: missed by XenonAnalyse (tools/find_switches.py)
+[[switch]]
+base = 0x828D14CC
+r = 11
+default = 0x828D14FC
+labels = [
+    0x828D14FC,
+    0x828D1568,
+    0x828D1540,
+    0x828D1634,
+    0x828D1540,
+    0x828D14FC,
+]

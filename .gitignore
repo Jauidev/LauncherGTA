@@ -1,0 +1,35 @@
+# Nothing from the game, and nothing built from it, belongs in this repository.
+*.iso
+*.xex
+*.apk
+*.rpf
+*.pe
+ppc/
+ppc_iv/
+private/
+game/
+game_iv/
+ISOS/
+save/
+save_iv/
+native-cache/
+third_party/rexglue/LibertyRecompLib/
+rexglue_glue/shader_override_cache.cpp
+LAUNCHER/*.png
+
+# Build output, logs and downloaded dependencies.
+build/
+backups/
+*.log
+*.err
+__pycache__/
+*.pyc
+third_party/xenia-gpu/
+third_party/XenonRecomp/
+third_party/o1heap/
+third_party/unordered_dense/
+third_party/libadrenotools/
+third_party/turnip/
+third_party/rexglue/thirdparty/*
+!third_party/rexglue/thirdparty/picosha2/
+!third_party/rexglue/thirdparty/renderdoc/

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- gta4port: the Snapdragon build (gta4snap.apk, tools/build-apk.sh snap): the same app as
+     android/AndroidManifest.xml (same package, so the same data folder) with its own version
+     line (tools/bump-version.sh snap) and label. Its libgta4.so loads Mesa's Turnip
+     (runtime/os/vk_driver.cpp). versionCode starts below the Mali build's, so going from
+     gta4port.apk to gta4snap.apk on one phone needs adb install -r -d (the app is debuggable). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.gta4port"
+    android:versionCode="201"
+    android:versionName="0.2.1D">
+
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="34" />
+
+    <application
+        android:label="GTA IV EFLC Snapdragon"
+        android:appCategory="game"
+        android:isGame="true"
+        android:debuggable="true"
+        android:extractNativeLibs="true"
+        android:hasCode="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:screenOrientation="sensorLandscape"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,43 @@
+diff --git a/gta4_native_hooks.cpp b/gta4_native_hooks.cpp
+index b4f1a81..de7e29d 100644
+--- a/gta4_native_hooks.cpp
++++ b/gta4_native_hooks.cpp
+@@ -2778,6 +2778,19 @@ struct NativeResolutionOverride {
+ // narrow strip in the middle of the landscape screen), so take the landscape
+ // shape of whatever size the window has right now.
+ std::pair<uint32_t, uint32_t> LandscapeDrawableSize() {
++#if REX_PLATFORM_ANDROID
++  // gta4port: the video globals hook runs before the game creates its D3D device, which is what
++  // starts the renderer and hands it the surface, so there is no window size yet. Without this the
++  // device surfaces were created 16:9 while the deferred targets, set up later, followed the
++  // 20:9 screen. MainActivity passes the screen's landscape size at launch.
++  static const std::pair<uint32_t, uint32_t> screen = [] {
++    unsigned width = 0, height = 0;
++    const char* size = getenv("GTA4_DISPLAY_SIZE");
++    if (!size || sscanf(size, "%ux%u", &width, &height) != 2) width = height = 0;
++    return std::pair<uint32_t, uint32_t>{width, height};
++  }();
++  if (screen.first && screen.second) return screen;
++#endif
+   auto* window = ::gta4native::DisplayWindow();
+   uint32_t width = window ? window->GetActualPhysicalWidth() : 0;
+   uint32_t height = window ? window->GetActualPhysicalHeight() : 0;
+@@ -6172,7 +6185,17 @@ PPC_FUNC(sub_82A44560) {
+ }
+ 
+ PPC_FUNC(sub_828BF8F8) {
+-  if (!IsNativeMode() || ctx.lr != kVideoGlobalsReadyReturnAddress) {
++  // gta4port: this runtime starts the native renderer only when the game creates its D3D device
++  // (VdInitializeRingBuffer), after this call, so IsNativeMode() is still false here. Skipping
++  // the override left sub_828BEC90's present parameters, the back buffer and its depth surface at
++  // the requested size while the deferred targets followed the display (1280x575 on a 20:9
++  // phone), and every explicit depth handoff was rejected for extent: no local lights, lit
++  // windows or sky.
++  static const bool native_requested = [] {
++    const char* gpu = getenv("GTA4_GPU");
++    return gpu && std::string_view(gpu) == "native";
++  }();
++  if (!(IsNativeMode() || native_requested) || ctx.lr != kVideoGlobalsReadyReturnAddress) {
+     __imp__sub_828BF8F8(ctx, base);
+     return;
+   }
