@@ -9,7 +9,7 @@
     <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="34" />
 
     <application
-        android:label="GTA IV EFLC"
+        android:label="LibertyDroid"
         android:icon="@mipmap/ic_launcher"
         android:appCategory="game"
         android:isGame="true"

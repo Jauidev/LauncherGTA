@@ -170,8 +170,6 @@ flowchart TD
 
 ## Building
 
-> **Note:** building from a clean clone has not been tried yet. Some steps will probably need adjusting.
-
 **You need:** Windows with Git Bash, Python 3 and Node.js; Android SDK (build-tools 36.0.0, platform 34, CMake 3.31.6) and NDK 27.2.12479018; JDK and Visual Studio Build Tools 2022.
 
 1. **Dependencies:** from the repository root, run `bash tools/fetch-deps.sh`. Download Turnip from [AdrenoToolsDrivers](https://github.com/K11MCH1/AdrenoToolsDrivers) and place it in `third_party/turnip/v26.0.0-R8/`.
