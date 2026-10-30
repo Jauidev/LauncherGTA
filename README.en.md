@@ -8,10 +8,9 @@ The game is not emulated. Its Xbox 360 executable is recompiled to native ARM64 
 
 ## Contents
 
-- [Status](#status)
+- [Requirements](#requirements)
 - [What it includes](#what-it-includes)
 - [How it works](#how-it-works)
-- [Requirements](#requirements)
 - [Dependencies](#dependencies)
 - [Building](#building)
 - [Repository layout](#repository-layout)
@@ -19,14 +18,39 @@ The game is not emulated. Its Xbox 360 executable is recompiled to native ARM64 
 - [License](#license)
 - [Legal notice](#legal-notice)
 
-## Status
+## Requirements
 
-The game is playable on Android with Mali GPUs (tested on Mali-G615) and Adreno GPUs (tested on Adreno 610), with no known graphical errors. Performance depends mostly on the phone's CPU, temperature and RAM.
+| Component | Requirement |
+|---|---|
+| **System** | Android 10 or later |
+| **CPU** | 64-bit ARM (`arm64-v8a`). No minimum speed has been measured, but performance depends mostly on the CPU |
+| **GPU** | Vulkan 1.2 with the features below, from the phone's driver or from Turnip |
+| **Memory** | 1.5 GB free at launch. With less, the launcher warns you to close other apps |
+| **Storage** | About 6.6 GB free per game, plus the ISO while importing (7.3 GB for GTA IV) |
+| **Game** | An ISO of the **USA version** of GTA IV or Episodes from Liberty City, with no title updates |
+| **Controls** | Built-in touch controls or a gamepad |
 
-Still to do:
+**Vulkan features the renderer needs:**
 
-- Build from a clean clone, which has not been tried yet.
-- Warn in the launcher when an imported driver is damaged. Today the game rejects it at startup.
+- `depthClamp`, `sampleRateShading` and `independentBlend`.
+- Descriptor indexing (`runtimeDescriptorArray` and `descriptorBindingPartiallyBound`).
+- `bufferDeviceAddress`.
+- Dynamic rendering (Vulkan 1.3 or `VK_KHR_dynamic_rendering`).
+
+`shaderInt64` is not required: without it, shaders use pairs of 32-bit values.
+
+**By GPU:**
+
+- **Adreno:** if the phone's driver doesn't meet the requirements, the game uses the bundled Turnip, as long as that Adreno is compatible with it.
+- **Mali:** always uses the phone's driver, which must meet them.
+- **Other GPUs:** untested. The launcher checks the driver and blocks the game if anything is missing.
+
+**Game versions:** other regions, or versions with title updates, don't match the recompiled code, and the launcher rejects them.
+
+| Game | Title ID | Media ID | `default.xex` version |
+|---|---|---|---|
+| GTA IV | `545407F2` | `6AC07221` | 5 |
+| Episodes from Liberty City | `545407F2` | `06759F9C` | 10 |
 
 ## What it includes
 
@@ -97,20 +121,6 @@ flowchart TD
     ADRENO --> SCREEN
 ```
 
-## Requirements
-
-### To play
-
-- Android 10 or later, ARM64.
-- A GPU with Vulkan 1.2 or later. On Adreno, Turnip can cover this if the phone's driver falls short.
-- An ISO of the **USA version** of GTA IV or Episodes from Liberty City, with no title updates. Other versions don't match the recompiled code.
-
-### To build
-
-- Windows with Git Bash, Python 3 and Node.js.
-- Android SDK (build-tools 36.0.0, platform 34, CMake 3.31.6) and NDK 27.2.12479018.
-- JDK and Visual Studio Build Tools 2022.
-
 ## Dependencies
 
 `tools/fetch-deps.sh` downloads the main ones at the exact versions used and applies the changes in `patches/`.
@@ -161,6 +171,8 @@ flowchart TD
 ## Building
 
 > **Note:** building from a clean clone has not been tried yet. Some steps will probably need adjusting.
+
+**You need:** Windows with Git Bash, Python 3 and Node.js; Android SDK (build-tools 36.0.0, platform 34, CMake 3.31.6) and NDK 27.2.12479018; JDK and Visual Studio Build Tools 2022.
 
 1. **Dependencies:** from the repository root, run `bash tools/fetch-deps.sh`. Download Turnip from [AdrenoToolsDrivers](https://github.com/K11MCH1/AdrenoToolsDrivers) and place it in `third_party/turnip/v26.0.0-R8/`.
 2. **LibertyRecomp files:** copy `LibertyRecompLib` from [LibertyRecomp](https://github.com/vaduur/LibertyRecompAndroid) into `third_party/rexglue/` and generate the shader caches. `rexglue_glue/shader_override_cache.cpp` is generated with `tools/gta4_shader_override_compiler.py`.
