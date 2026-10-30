@@ -65,6 +65,38 @@ Native C++ launcher, using ImGui on OpenGL ES 3:
 5. **Two games, one codebase:** the sources are written for the addresses of Episodes from Liberty City. `tools/gen_iv_sources.py` generates the GTA IV copy at build time, using the tables in `analysis/gta4/`.
 6. **Drivers on Adreno:** [libadrenotools](https://github.com/bylaws/libadrenotools) loads Turnip or an imported driver when the phone's own driver falls short.
 
+### Diagrams
+
+**From the disc to the app:**
+
+```mermaid
+flowchart LR
+    ISO["Xbox 360 ISO"] --> XEX["default.xex<br/>(PowerPC)"]
+    XEX --> RECOMP["XenonRecomp"]
+    RECOMP --> CPP["Recompiled<br/>C++ code"]
+    CPP --> NDK["Android NDK<br/>compiler"]
+    PORT["runtime/ and<br/>rexglue_glue/"] --> NDK
+    NDK --> APK["APK with one library<br/>per game"]
+```
+
+**While playing:**
+
+```mermaid
+flowchart TD
+    LAUNCHER["Launcher"] -->|"Import ISO"| DATA["Game data"]
+    LAUNCHER -->|"Play"| GAME["Recompiled game<br/>(ARM64)"]
+    INPUT["Touch controls<br/>or gamepad"] --> RUNTIME
+    GAME -->|"System calls"| RUNTIME["Runtime<br/>Xbox 360 kernel, memory,<br/>threads, files and audio"]
+    RUNTIME --> DATA
+    GAME -->|"Graphics commands"| HOOKS["Hooks"]
+    HOOKS --> RENDERER["Vulkan renderer"]
+    RENDERER --> DRIVER{"Which GPU?"}
+    DRIVER -->|"Mali"| PHONE["Phone's driver"]
+    DRIVER -->|"Adreno"| ADRENO["Phone's driver, Turnip<br/>or imported driver"]
+    PHONE --> SCREEN["Screen"]
+    ADRENO --> SCREEN
+```
+
 ## Requirements
 
 ### To play
