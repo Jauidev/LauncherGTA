@@ -35,7 +35,9 @@ mkdir -p "$OUT/classes" "$OUT/dex" "$OUT/lib/arm64-v8a"
 "$JDK/bin/javac" -source 8 -target 8 -bootclasspath "$JAR" -nowarn -Xlint:-options \
     -d "$OUT/classes" $(find "$ROOT/android/src" -name '*.java')
 "$BT/d8.bat" --release --min-api 29 --lib "$JAR" --output "$OUT/dex" $(find "$OUT/classes" -name '*.class')
-"$BT/aapt2.exe" link -o "$OUT/base.apk" --manifest "$MANIFEST" -I "$JAR" \
+# The app icon (LAUNCHER/res, made by tools/make_icon.py).
+"$BT/aapt2.exe" compile --dir "$ROOT/LAUNCHER/res" -o "$OUT/res.zip"
+"$BT/aapt2.exe" link -o "$OUT/base.apk" --manifest "$MANIFEST" -I "$JAR" "$OUT/res.zip" \
     --min-sdk-version 29 --target-sdk-version 34
 
 # The APK carries a stripped copy; $BUILD/libgta4.so keeps the symbols for llvm-symbolizer

@@ -177,7 +177,7 @@ flowchart TD
 1. **Dependencies:** from the repository root, run `bash tools/fetch-deps.sh`. Download Turnip from [AdrenoToolsDrivers](https://github.com/K11MCH1/AdrenoToolsDrivers) and place it in `third_party/turnip/v26.0.0-R8/`.
 2. **LibertyRecomp files:** copy `LibertyRecompLib` from [LibertyRecomp](https://github.com/vaduur/LibertyRecompAndroid) into `third_party/rexglue/` and generate the shader caches. `rexglue_glue/shader_override_cache.cpp` is generated with `tools/gta4_shader_override_compiler.py`.
 3. **Recompile the game:** extract `default.xex` from the ISO and place it in `private/gta4/default.xex` (GTA IV) and `private/default.xex` (Episodes from Liberty City). Build XenonRecomp with `build-xenonrecomp.bat`, then run `tools\recompile-iv.bat` and `tools\recompile.bat`.
-4. **Backgrounds:** add `LAUNCHER/FONDO DE MALI.png` and `LAUNCHER/FONDO DE ADRENO.png`.
+4. **Backgrounds and icon:** add `LAUNCHER/FONDO DE MALI.png`, `LAUNCHER/FONDO DE ADRENO.png` and `LAUNCHER/ICONO DEL LAUNCHER.png`, then run `py -3 tools/make_icon.py` (needs Pillow; the `PICTURE` crop in that script fits a 1272x1236 image).
 5. **APK:**
 
    ```bash

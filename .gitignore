@@ -15,7 +15,7 @@ save_iv/
 native-cache/
 third_party/rexglue/LibertyRecompLib/
 rexglue_glue/shader_override_cache.cpp
-LAUNCHER/*.png
+LAUNCHER/
 
 # Build output, logs and downloaded dependencies.
 build/
