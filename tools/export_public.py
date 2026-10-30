@@ -1,4 +1,4 @@
-"""Copies what the public repository holds (LauncherGTA) into another folder. It is a list of what
+"""Copies what the public repository holds (LibertyDroid7) into another folder. It is a list of what
 to publish, not of what to leave out, so anything new stays private until it is added here: the
 game's files, the recompiled code (ppc/, ppc_iv/), its compiled shaders, saves, logs and notes never
 get there. Also writes patches/ with the changes to the unmodified third-party clones.

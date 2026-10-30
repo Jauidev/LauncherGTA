@@ -1,4 +1,4 @@
-# LauncherGTA
+# LibertyDroid7
 
 **Español** | [English](README.en.md)
 
