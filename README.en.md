@@ -1,4 +1,4 @@
-# LibertyDroid7
+# LibertyDroid
 
 [Español](README.md) | **English**
 
