@@ -1,12 +1,10 @@
 # LauncherGTA
 
+**Español** | [English](README.en.md)
+
 Port nativo y no oficial de **Grand Theft Auto IV** y **Episodes from Liberty City** (Xbox 360) a **Android**, con launcher propio.
 
 El juego no se emula. Su ejecutable de Xbox 360 se recompila a código nativo ARM64 y se dibuja con un renderizador Vulkan. El proyecto también incluye el launcher que importa el juego, lo configura y lo arranca.
-
-> **Este repositorio solo contiene código fuente.** No incluye el juego, APK, ISO ni archivos de Rockstar Games. Para usarlo hace falta una copia legal propia del juego.
-
-**Versión:** 0.14.5D
 
 ## Índice
 
@@ -15,7 +13,6 @@ El juego no se emula. Su ejecutable de Xbox 360 se recompila a código nativo AR
 - [Cómo funciona](#cómo-funciona)
 - [Requisitos](#requisitos)
 - [Dependencias](#dependencias)
-- [Qué no se publica](#qué-no-se-publica)
 - [Compilar](#compilar)
 - [Estructura del repositorio](#estructura-del-repositorio)
 - [Créditos](#créditos)
@@ -129,22 +126,12 @@ Launcher nativo en C++, con ImGui sobre OpenGL ES 3:
 | [utfcpp](https://github.com/nemtrif/utfcpp) | Texto UTF-8 | BSL-1.0 |
 | picosha2, RenderDoc API (incluidas) | SHA-256 y depuración gráfica | MIT |
 
-## Qué no se publica
-
-| Falta | Motivo | De dónde sale |
-|---|---|---|
-| `ppc/`, `ppc_iv/` | Código recompilado del juego | Se genera desde una copia propia (paso 3) |
-| ISO, `default.xex`, datos del juego | Propiedad de Rockstar Games | Una copia legal propia |
-| `shader_cache.cpp`, `shader_override_cache.cpp`, `third_party/rexglue/LibertyRecompLib/` | Shaders compilados o reconstruidos a partir del juego, y sus fuentes | [LibertyRecomp](https://github.com/vaduur/LibertyRecompAndroid) y una copia propia |
-| Fondos del launcher (`LAUNCHER/*.png`) | No forman parte del código | Imágenes propias |
-| Turnip | Binario de terceros | [AdrenoToolsDrivers](https://github.com/K11MCH1/AdrenoToolsDrivers), en `third_party/turnip/v26.0.0-R8/` |
-
 ## Compilar
 
 > **Aviso:** todavía no se ha probado compilar desde un clon limpio. Es probable que algún paso necesite ajustes.
 
-1. **Dependencias:** desde la raíz del repositorio, ejecuta `bash tools/fetch-deps.sh`.
-2. **Archivos de LibertyRecomp:** copia `LibertyRecompLib` en `third_party/rexglue/` y genera las cachés de shaders. `rexglue_glue/shader_override_cache.cpp` se genera con `tools/gta4_shader_override_compiler.py`.
+1. **Dependencias:** desde la raíz del repositorio, ejecuta `bash tools/fetch-deps.sh`. Descarga Turnip de [AdrenoToolsDrivers](https://github.com/K11MCH1/AdrenoToolsDrivers) y colócalo en `third_party/turnip/v26.0.0-R8/`.
+2. **Archivos de LibertyRecomp:** copia `LibertyRecompLib` de [LibertyRecomp](https://github.com/vaduur/LibertyRecompAndroid) en `third_party/rexglue/` y genera las cachés de shaders. `rexglue_glue/shader_override_cache.cpp` se genera con `tools/gta4_shader_override_compiler.py`.
 3. **Recompilar el juego:** extrae `default.xex` de la ISO y colócalo en `private/gta4/default.xex` (GTA IV) y `private/default.xex` (Episodes from Liberty City). Compila XenonRecomp con `build-xenonrecomp.bat` y ejecuta `tools\recompile-iv.bat` y `tools\recompile.bat`.
 4. **Fondos:** añade `LAUNCHER/FONDO DE MALI.png` y `LAUNCHER/FONDO DE ADRENO.png`.
 5. **APK:**
